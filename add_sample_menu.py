@@ -33,7 +33,7 @@ FOOD_ITEMS = [
     ("Veg Kathi Roll", 90, "Rolls & Wraps", 360, 10, 52, "Vegetarian", "Vegetable filling in a wrap"),
     ("Paneer Tikka Roll", 130, "Rolls & Wraps", 440, 20, 48, "Vegetarian", "Paneer tikka wrap"),
     ("Mushroom Roll", 110, "Rolls & Wraps", 350, 11, 49, "Vegan", "Spiced mushroom wrap"),
-    ("Tofu Roll", 120, "Rolls & Wraps", 380, 19, 48, "Vegan", "Tofu and salad wrap"),
+    ("Tofu Roll", 120, "R3olls & Wraps", 380, 19, 48, "Vegan", "Tofu and salad wrap"),
     ("Egg Roll", 90, "Rolls & Wraps", 340, 14, 42, "Egg", "Egg wrapped in a flatbread"),
     ("Double Egg Roll", 110, "Rolls & Wraps", 410, 20, 43, "Egg", "Double egg flatbread roll"),
     ("Chicken Roll", 140, "Rolls & Wraps", 430, 28, 46, "Non-vegetarian", "Chicken wrap with vegetables"),
