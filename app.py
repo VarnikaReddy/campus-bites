@@ -186,25 +186,12 @@ if page == "🔐 Admin Login":
 
 elif page == "🏠 Home":
 
-    st.markdown("""
-    <div style="text-align:center;padding:18px 0 12px">
-
-        <div style="font-size:12px;letter-spacing:4px">
-            FRESH FOOD · MADE FOR CAMPUS
-        </div>
-
-        <h1 style="letter-spacing:5px;margin-bottom:0">
-            CAMPUS BITES
-        </h1>
-
-        <p style="letter-spacing:2px;color:gray">
-            CANTEEN MENU
-        </p>
-
-        <hr>
-
-    </div>
-    """, unsafe_allow_html=True)
+    # Use native Streamlit elements instead of HTML.
+    st.write("")
+    st.caption("FRESH FOOD · MADE FOR CAMPUS")
+    st.title("CAMPUS BITES")
+    st.subheader("CANTEEN MENU")
+    st.divider()
 
 
     foods = show_menu()
@@ -368,12 +355,14 @@ elif page == "🍽️ Order Food":
     # Do not directly change the radio widget's value here.
     # Use a callback instead.
 
+   
     st.button(
-        "🛒 Go to My Cart",
-        type="primary",
-        use_container_width=True,
-        on_click=go_to_cart,
-    )
+    "🛒 Go to My Cart",
+    type="primary",
+    use_container_width=True,
+    on_click=go_to_cart,
+    key="order_page_go_to_cart"
+)
 
 
 # --------------------------------------------------
@@ -936,7 +925,8 @@ elif page == "🧑‍🍳 Admin Dashboard":
             "Preparing",
             "Ready",
             "Completed",
-            "Cancelled"
+            "Cancelled",
+            "Not Picked Up"
         ]
 
         for order in all_orders:
