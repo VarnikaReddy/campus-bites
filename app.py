@@ -1,4 +1,5 @@
 import html
+import json
 import streamlit as st
 
 from database import setup_database
@@ -35,24 +36,76 @@ ADMIN_PASSWORD = "Canteen@123"
 setup_database()
 
 
+
 # --------------------------------------------------
 # SESSION STATE
 # --------------------------------------------------
+
+cart_was_initialized = "cart" in st.session_state
 
 for key, default in {
     "admin_logged_in": False,
     "cart": {},
     "student_name": "",
     "student_id": "",
+    "healthy_picks": [],
+    "healthy_add_success": "",
+    "healthy_recommendations_requested": False,
 }.items():
-
     if key not in st.session_state:
         st.session_state[key] = default
+
+
+# Restore cart from the URL when a fresh Streamlit session starts.
+# Validate the data before using it to avoid malformed URL values.
+if not cart_was_initialized:
+    try:
+        saved_cart = st.query_params.get("cart", "")
+        loaded_cart = json.loads(saved_cart) if saved_cart else {}
+
+        if isinstance(loaded_cart, dict):
+            restored_cart = {}
+
+            for item_name, item_data in loaded_cart.items():
+                if not isinstance(item_data, dict):
+                    continue
+
+                item_price = float(item_data.get("price", 0))
+                item_quantity = int(item_data.get("quantity", 0))
+                safe_name = str(item_data.get("name", item_name)).strip()
+
+                if safe_name and item_price >= 0 and item_quantity > 0:
+                    restored_cart[safe_name] = {
+                        "name": safe_name,
+                        "price": item_price,
+                        "quantity": item_quantity,
+                    }
+
+            st.session_state.cart = restored_cart
+        else:
+            st.session_state.cart = {}
+
+    except (json.JSONDecodeError, TypeError, ValueError, AttributeError):
+        st.session_state.cart = {}
 
 
 # --------------------------------------------------
 # HELPER FUNCTIONS
 # --------------------------------------------------
+
+def save_cart_to_url():
+
+    if st.session_state.cart:
+
+        st.query_params["cart"] = json.dumps(
+            st.session_state.cart,
+            separators=(",", ":"),
+        )
+
+    else:
+
+        st.query_params.pop("cart", None)
+
 
 def add_to_cart(food, quantity):
 
@@ -66,10 +119,12 @@ def add_to_cart(food, quantity):
 
         st.session_state.cart[name] = {
             "name": name,
-            "price": food["price"],
-            "quantity": quantity,
+            "price": float(food["price"]),
+            "quantity": int(quantity),
         }
 
+    # Save cart in URL so it survives refresh
+    save_cart_to_url()
 
 def cart_total():
 
@@ -82,13 +137,6 @@ def cart_total():
 def go_to_cart():
     st.session_state.navigation = "🛒 My Cart"
 
-
-st.button(
-    "🛒 Go to My Cart",
-    type="primary",
-    use_container_width=True,
-    on_click=go_to_cart
-)
 
 def nutrition_line(food):
 
@@ -357,12 +405,12 @@ elif page == "🍽️ Order Food":
 
    
     st.button(
-    "🛒 Go to My Cart",
-    type="primary",
-    use_container_width=True,
-    on_click=go_to_cart,
-    key="order_page_go_to_cart"
-)
+        "🛒 Go to My Cart",
+        type="primary",
+        use_container_width=True,
+        on_click=go_to_cart,
+        key="order_page_go_to_cart",
+    )
 
 
 # --------------------------------------------------
@@ -425,10 +473,10 @@ elif page == "🤖 Healthy Recommendations":
     if st.button(
         "✨ Recommend Healthy Foods",
         type="primary",
-        use_container_width=True
+        use_container_width=True,
+        key="recommend_healthy_foods_button",
     ):
-
-        picks = recommend_healthy_food(
+        st.session_state.healthy_picks = recommend_healthy_food(
             foods,
             budget=budget,
             diet=diet,
@@ -436,61 +484,59 @@ elif page == "🤖 Healthy Recommendations":
             max_calories=max_calories,
             min_protein=min_protein,
         )
+        st.session_state.healthy_add_success = ""
+        st.session_state.healthy_recommendations_requested = True
 
-        if not picks:
 
-            st.warning(
-                "No dishes match all these filters. "
-                "Try increasing your budget or calorie limit "
-                "or lowering protein."
-            )
+    # Show success message after adding an item
+    if st.session_state.healthy_add_success:
+        st.success(st.session_state.healthy_add_success)
 
-        else:
+    # Keep recommendations stored in session state after reruns.
+    picks = st.session_state.healthy_picks
 
-            st.subheader("Your suggested dishes")
-
-            for food in picks:
-
-                with st.container(border=True):
-
-                    left, right = st.columns([4, 1])
-
-                    with left:
-
-                        st.markdown(
-                            f"**{food['name']}** · "
-                            f"₹{float(food['price']):.0f}"
+    if picks:
+        st.subheader("Your suggested dishes")
+        for food in picks:
+            with st.container(border=True):
+                left, right = st.columns([4, 1])
+                with left:
+                    st.markdown(
+                        f"**{food['name']}** · ₹{float(food['price']):.0f}"
+                    )
+                    st.caption(
+                        f"{food['category']} · "
+                        f"{food.get('diet_type', 'Vegetarian')}"
+                    )
+                    st.caption(nutrition_line(food))
+                    if food.get("description"):
+                        st.write(food["description"])
+                with right:
+                    if st.button(
+                        "➕ Add",
+                        key=f"healthy_add_{food['id']}",
+                        use_container_width=True,
+                    ):
+                        add_to_cart(food, 1)
+                        st.session_state.healthy_add_success = (
+                            f"{food['name']} added to your cart!"
                         )
-
-                        st.caption(
-                            f"{food['category']} · "
-                            f"{food.get('diet_type', 'Vegetarian')}"
-                        )
-
-                        st.caption(nutrition_line(food))
-
-                        if food.get("description"):
-
-                            st.write(food["description"])
-
-
-                    with right:
-
-                        if st.button(
-                            "Add",
-                            key=f"healthy_add_{food['id']}"
-                        ):
-
-                            add_to_cart(food, 1)
-
-                            st.success("Added to cart.")
-
+                        st.rerun()
+    elif st.session_state.get("healthy_recommendations_requested", False):
+        st.warning(
+            "No dishes match all these filters. Try increasing your budget or calorie limit, "
+            "or lowering your protein requirement."
+        )
+    else:
+        st.info(
+            "Choose your preferences above and click "
+            "'Recommend Healthy Foods' to see suggestions."
+        )
 
     st.caption(
-        "This is a transparent, rule-based recommendation "
-        "feature built in Python, not a live external AI model."
+        "This is a transparent, rule-based recommendation feature built in Python, "
+        "not a live external AI model."
     )
-
     st.caption(
         "Nutrition figures are approximate estimates per serving, "
         "not medical or lab-verified data."
@@ -550,6 +596,7 @@ elif page == "🛒 My Cart":
 
                         del st.session_state.cart[name]
 
+                        save_cart_to_url()
                         st.rerun()
 
 
@@ -613,6 +660,9 @@ elif page == "🛒 My Cart":
                 )
 
                 st.session_state.cart = {}
+
+                # Remove the saved cart from the URL after checkout.
+                save_cart_to_url()
 
                 st.success("Order placed successfully!")
 
